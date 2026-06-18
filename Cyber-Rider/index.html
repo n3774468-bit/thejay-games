@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Cyber Rider </title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #04010a;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: #ffffff;
+        }
+
+     #game-container {
+            position: relative;
+            width: 450px;
+            height: 600px;
+            box-shadow: 0 0 35px rgba(255, 0, 180, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #ff00b0;
+        }
+
+        canvas {
+            display: block;
+            background: #090214;
+            width: 100%;
+            height: 100%;
+        }
+
+     .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(9, 2, 20, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 30px;
+            z-index: 10;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+     h1 {
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px #ff00b0, 0 0 5px #00f0ff;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #00f0ff;
+            margin-bottom: 30px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        .instructions {
+            background: rgba(255, 0, 176, 0.08);
+            border: 1px solid rgba(255, 0, 176, 0.4);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 35px;
+            text-align: left;
+            width: 100%;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .instructions h3 { 
+            margin-top: 0; 
+            color: #00f0ff; 
+        }
+
+        .instructions ul { 
+            margin: 0; 
+            padding-left: 20px; 
+        }
+
+        .btn {
+            background: transparent;
+            border: 2px solid #ff00b0;
+            color: #ff00b0;
+            padding: 12px 40px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255, 0, 180, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #ff00b0;
+            color: #090214;
+            box-shadow: 0 0 25px rgba(255, 0, 180, 0.6);
+            transform: scale(1.05);
+        }
+
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            font-weight: bold;
+            z-index: 5;
+            text-shadow: 0 0 5px #000;
+        }
+
+        #fuel-bar-container {
+            width: 120px;
+            height: 14px;
+            border: 1px solid #00f0ff;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        #fuel-bar {
+            width: 100%;
+            height: 100%;
+            background: #00f0ff;
+            box-shadow: 0 0 8px #00f0ff;
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud" class="hidden">
+        <div>SCORE: <span id="hud-score-val" style="color: #ffffff;">0</span></div>
+        <div>
+            <div style="color: #00f0ff; text-align: right; font-size: 0.8rem;">FUEL</div>
+            <div id="fuel-bar-container"><div id="fuel-bar"></div></div>
+        </div>
+    </div>
+
+    <div id="start-screen" class="screen">
+        <h1>Cyber Rider</h1>
+        <div class="subtitle">Neon Highway</div>
+        <div class="instructions">
+            <h3>How to Play:</h3>
+            <ul>
+                <li>Laptop: Use <b>LEFT / RIGHT Arrows</b> or <b>A / D Keys</b> to switch lanes.</li>
+                <li>Mobile: Tap the <b>LEFT / RIGHT side</b> of the screen.</li>
+                <li>Avoid the glowing <b>Red Barricades</b> on the highway.</li>
+                <li>Collect <b>Green Energy Cells</b> to replenish your fuel bar!</li>
+            </ul>
+        </div>
+        <button id="start-btn" class="btn">Drive</button>
+    </div>
+
+    <div id="game-over-screen" class="screen hidden">
+        <h1 id="game-over-title" style="color: #ff0055; text-shadow: 0 0 15px #ff0055;">Wrecked!</h1>
+        <div class="subtitle" id="game-over-sub">You crashed on the highway</div>
+        <div style="font-size: 1.4rem; margin-bottom: 30px;">Final Score: <span id="final-score-val">0</span></div>
+        <button id="restart-btn" class="btn">Ride Again</button>
+    </div>
+
+    <canvas id="gameCanvas" width="450" height="600"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Tangkap semua elemen UI DOM
+    const startScreen = document.getElementById("start-screen");
+    const gameOverScreen = document.getElementById("game-over-screen");
+    const gameOverTitle = document.getElementById("game-over-title");
+    const gameOverSub = document.getElementById("game-over-sub");
+    const hud = document.getElementById("hud");
+    const startBtn = document.getElementById("start-btn");
+    const restartBtn = document.getElementById("restart-btn");
+    
+    const hudScoreVal = document.getElementById("hud-score-val");
+    const fuelBar = document.getElementById("fuel-bar");
+    const finalScoreVal = document.getElementById("final-score-val");
+
+    const LANES = [100, 225, 350]; 
+    
+    const COLOR_BG = "#090214";
+    const COLOR_RIDER = "#ff00b0";
+    const COLOR_OBSTACLE = "#ff0055";
+    const COLOR_ENERGY = "#00ff99";
+
+    let audioCtx = null;
+
+    function initAudio() { 
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+        }
+    }
+
+    function playSoundEffect(type) {
+        if (!audioCtx) return;
+        
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); 
+        gain.connect(audioCtx.destination);
+
+        switch (type) {
+            case 'dodge': // Suara geser jalur cepat
+                osc.frequency.setValueAtTime(350, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                osc.start(); 
+                osc.stop(audioCtx.currentTime + 0.08);
+                break;
+
+            case 'energy': // Suara dapet item bensin (nada arpeggio ceria)
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.08); 
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.start(); 
+                osc.stop(audioCtx.currentTime + 0.18);
+                break;
+
+            case 'crash': // Suara tabrakan meledak (frekuensi rendah menurun kasar)
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                osc.start(); 
+                osc.stop(audioCtx.currentTime + 0.4);
+                break;
+        }
+    }
+
+    
+    let score = 0;
+    let fuel = 100;
+    let currentLane = 1;      // Lajur target saat ini (0: kiri, 1: tengah, 2: kanan)
+    let targetX = LANES[1];   // Posisi X tujuan motor
+    let riderX = LANES[1];    // Posisi X motor saat ini (untuk efek transisi geser mulus)
+    let isPlaying = false;
+    
+    let objects = [];         // Array untuk menampung rintangan dan item bensin
+    let particles = [];       // Array untuk menampung percikan efek ledakan
+    let gridOffset = 0;       // Nilai pergerakan ilusi animasi garis jalanan
+    let gameSpeed = 2.8;      // DIUBAH: Kecepatan awal diturunkan dari 5 jadi 2.8 agar lebih lambat santai
+    let spawnTimer = 0;       // Penghitung waktu jeda pemunculan objek baru
+    let screenShake = 0;      // Efek guncangan layar saat terjadi tabrakan
+
+    
+    // Kendali Laptop/PC via Keyboard (Sangat responsif)
+    window.addEventListener("keydown", (e) => {
+        if (!isPlaying) return;
+
+        if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+            if (currentLane > 0) { 
+                currentLane--; 
+                playSoundEffect('dodge'); 
+            }
+        } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+            if (currentLane < 2) { 
+                currentLane++; 
+                playSoundEffect('dodge'); 
+            }
+        }
+        targetX = LANES[currentLane];
+    });
+
+    // Kendali klik mouse & layar sentuh HP (Dibagi 2 sisi area kiri & kanan)
+    window.addEventListener("mousedown", (e) => handleScreenTap(e.clientX));
+    window.addEventListener("touchstart", (e) => handleScreenTap(e.touches[0].clientX));
+
+    function handleScreenTap(clientX) {
+        if (!isPlaying) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const clickX = (clientX - rect.left) * (canvas.width / rect.width);
+        
+        if (clickX < canvas.width / 2) {
+            if (currentLane > 0) { currentLane--; playSoundEffect('dodge'); }
+        } else {
+            if (currentLane < 2) { currentLane++; playSoundEffect('dodge'); }
+        }
+        targetX = LANES[currentLane];
+    }
+
+    // Tombol Menu UI
+    startBtn.addEventListener("click", () => { initAudio(); startGame(); });
+    restartBtn.addEventListener("click", () => { startGame(); });
+
+
+    // ==========================================
+    // GAMEPLAY SYSTEMS
+    // ==========================================
+    function startGame() {
+        score = 0; 
+        fuel = 100; 
+        currentLane = 1; 
+        targetX = LANES[1]; 
+        riderX = LANES[1];
+        objects = []; 
+        particles = []; 
+        gameSpeed = 2.8; // Set ulang kecepatan santai saat restart
+        isPlaying = true;
+        
+        hudScoreVal.innerText = score;
+        fuelBar.style.width = "100%";
+        
+        startScreen.classList.add("hidden");
+        gameOverScreen.classList.add("hidden");
+        hud.classList.remove("hidden");
+    }
+
+    function triggerGameOver(reason) {
+        isPlaying = false;
+        hud.classList.add("hidden");
+        gameOverScreen.classList.remove("hidden");
+        finalScoreVal.innerText = Math.floor(score);
+
+        if (reason === 'fuel') {
+            gameOverTitle.innerText = "Out of Fuel!";
+            gameOverTitle.style.color = "#00f0ff";
+            gameOverTitle.style.textShadow = "0 0 15px #00f0ff";
+            gameOverSub.innerText = "Your energy cells drained completely.";
+        } else {
+            gameOverTitle.innerText = "Wrecked!";
+            gameOverTitle.style.color = "#ff0055";
+            gameOverTitle.style.textShadow = "0 0 15px #ff0055";
+            gameOverSub.innerText = "You crashed into a cyber barricade.";
+        }
+    }
+
+    function spawnExplosionParticles(x, y, color) {
+        for (let i = 0; i < 12; i++) {
+            particles.push({
+                x: x, 
+                y: y,
+                vx: (Math.random() - 0.5) * 6, 
+                vy: (Math.random() - 0.5) * 6,
+                radius: Math.random() * 3 + 1, 
+                color: color, 
+                alpha: 1
+            });
+        }
+    }
+
+    function spawnIncomingObject() {
+        // Probabilitas acak: 40% kemungkinan item bensin, 60% barikade rintangan
+        const randomType = Math.random() < 0.4 ? "energy" : "obstacle";
+        const randomLane = Math.floor(Math.random() * 3);
+        
+        objects.push({
+            lane: randomLane,
+            y: 180,       // Muncul tepat dari garis ufuk cakrawala jalanan
+            scale: 0.1,   // Rasio ukuran awal (kecil karena jauh di ufuk)
+            type: randomType
+        });
+    }
+
+    // ==========================================
+    // PHYSICS ENGINE & RENDER LOOP
+    // ==========================================
+    function updateGameLogic() {
+        // Efek pergerakan jalanan konstan (tetap berjalan di background menu utama)
+        gridOffset += gameSpeed;
+        if (gridOffset > 40) gridOffset = 0;
+
+        if (!isPlaying) return;
+
+        // DIUBAH: Konsumsi bensin diturunkan dari 0.08 jadi 0.035 agar bensin jauh lebih awet
+        fuel -= 0.035;
+        if (fuel < 0) fuel = 0;
+        fuelBar.style.width = fuel + "%";
+        
+        if (fuel <= 0) { 
+            triggerGameOver('fuel'); 
+            return; 
+        }
+
+        // Akumulasi skor secara berkala
+        score += 0.05;
+        hudScoreVal.innerText = Math.floor(score);
+
+        // DIUBAH: Peningkatan kesulitan dibuat sangat landai agar game tidak mendadak jadi terlalu ngebut
+        gameSpeed = 2.8 + (score * 0.004);
+        
+        // Reduksi hitungan efek getar layar
+        if (screenShake > 0) screenShake--;
+
+        // DIUBAH: Nilai pengali diturunkan dari 0.35 menjadi 0.12 agar motor bergeser meluncur secara super "smooth" dan tidak patah-patah/kaku
+        riderX += (targetX - riderX) * 0.12;
+
+        // Management Pemunculan Objek baru berdasarkan interval timer
+        spawnTimer++;
+        const dynamicSpawnRate = Math.max(35, 75 - Math.floor(score * 0.08));
+        if (spawnTimer > dynamicSpawnRate) {
+            spawnIncomingObject();
+            spawnTimer = 0;
+        }
+
+        // Update animasi partikel serpihan ledakan
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i]; 
+            p.x += p.vx; 
+            p.y += p.vy; 
+            p.alpha -= 0.03; // Efek memudar (*fade out*)
+            
+            if (p.alpha <= 0) particles.splice(i, 1);
+        }
+
+        // Update pergerakan objek mendekat berdasarkan perspektif 3D palsu (Pseudo-3D)
+        for (let i = objects.length - 1; i >= 0; i--) {
+            let obj = objects[i];
+            
+            // Semakin ke bawah layar, lajunya bertambah cepat dan skalanya membesar
+            obj.y += gameSpeed * (obj.scale * 1.8);
+            obj.scale += 0.012; // DIUBAH: Diturunkan dari 0.015 ke 0.012 agar membesarnya rintangan terasa pas dengan laju lambat jalanan
+
+            // Hitung posisi horizontal X objek secara dinamis mengikuti arah garis jalur perspektif menyempit
+            const horizonCenter = canvas.width / 2;
+            const absoluteLaneX = LANES[obj.lane];
+            const currentObjectX = horizonCenter + (absoluteLaneX - horizonCenter) * (obj.scale * 1.2);
+
+            // Deteksi tabrakan saat posisi Y objek sejajar dengan posisi motor pemain (Y: 500 - 540)
+            if (obj.y > 500 && obj.y < 540 && obj.lane === currentLane) {
+                if (obj.type === "energy") {
+                    fuel = Math.min(100, fuel + 25); // Tambah bensin (+25%)
+                    playSoundEffect('energy');
+                    spawnExplosionParticles(currentObjectX, obj.y, COLOR_ENERGY);
+                } else if (obj.type === "obstacle") {
+                    screenShake = 15;
+                    playSoundEffect('crash');
+                    spawnExplosionParticles(currentObjectX, obj.y, COLOR_OBSTACLE);
+                    triggerGameOver('crash');
+                }
+                objects.splice(i, 1);
+                continue;
+            }
+
+            // Bersihkan objek yang sudah terlewat keluar dari layar bagian bawah
+            if (obj.y > canvas.height + 20) {
+                objects.splice(i, 1);
+            }
+        }
+    }
+
+    function renderGraphics() {
+        ctx.save();
+        
+        // Aplikasikan efek guncangan layar jika variabel screenShake aktif
+        if (screenShake > 0) {
+            ctx.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+        }
+
+        // Reset Canvas
+        ctx.fillStyle = COLOR_BG;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 1. RENDER LANGIT MALAM DI ATAS UFUK JALANAN
+        const horizonLineY = 180;
+        ctx.fillStyle = "#120324";
+        ctx.fillRect(0, 0, canvas.width, horizonLineY);
+        
+        // Garis pembatas cakrawala (Horizon line neon glow)
+        ctx.strokeStyle = "#00f0ff"; 
+        ctx.lineWidth = 2;
+        ctx.beginPath(); 
+        ctx.moveTo(0, horizonLineY); 
+        ctx.lineTo(canvas.width, horizonLineY); 
+        ctx.stroke();
+
+        // 2. RENDER GRID HIGHWAY PERSPEKTIF 3D
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.15)"; 
+        ctx.lineWidth = 1;
+        
+        // Menggambar garis jalur vertikal yang menyempit di satu titik tengah horizon
+        for (let i = 0; i <= 4; i++) {
+            let xTop = canvas.width / 2;
+            let xBottom = (canvas.width / 4) * i;
+            ctx.beginPath(); ctx.moveTo(xTop, horizonLineY); ctx.lineTo(xBottom, canvas.height); ctx.stroke();
+        }
+        
+        // Menggambar garis lajur horizontal yang renggangnya melebar secara dinamis ke arah bawah
+        for (let y = horizonLineY + gridOffset; y < canvas.height; y += 30) {
+            let depthRatio = (y - horizonLineY) / (canvas.height - horizonLineY);
+            let perspectiveY = horizonLineY + depthRatio * (canvas.height - horizonLineY);
+            ctx.beginPath(); ctx.moveTo(0, perspectiveY); ctx.lineTo(canvas.width, perspectiveY); ctx.stroke();
+        }
+
+        // 3. RENDER OBJEK AKTIF (Rintangan & Kotak Energi)
+        objects.forEach(obj => {
+            const horizonCenter = canvas.width / 2;
+            const absoluteLaneX = LANES[obj.lane];
+            const currentObjectX = horizonCenter + (absoluteLaneX - horizonCenter) * (obj.scale * 1.2);
+            const dynamicallyCalculatedSize = 25 * obj.scale;
+
+            ctx.save();
+            ctx.translate(currentObjectX, obj.y);
+            
+            if (obj.type === "obstacle") {
+                // Barikade Laser Merah Menyala
+                ctx.shadowBlur = 15; 
+                ctx.shadowColor = COLOR_OBSTACLE;
+                ctx.fillStyle = COLOR_OBSTACLE;
+                ctx.fillRect(-dynamicallyCalculatedSize, -dynamicallyCalculatedSize / 2, dynamicallyCalculatedSize * 2, dynamicallyCalculatedSize);
+                // Aksen garis putih terang di tengah rintangan
+                ctx.fillStyle = "#ffffff"; 
+                ctx.fillRect(-dynamicallyCalculatedSize + 4, -2, dynamicallyCalculatedSize * 2 - 8, 4);
+            } else {
+                // Kotak Energi Hijau dengan efek rotasi/berputar otomatis
+                ctx.shadowBlur = 15; 
+                ctx.shadowColor = COLOR_ENERGY;
+                ctx.fillStyle = COLOR_ENERGY;
+                ctx.rotate(Date.now() * 0.005);
+                ctx.fillRect(-dynamicallyCalculatedSize / 2, -dynamicallyCalculatedSize / 2, dynamicallyCalculatedSize, dynamicallyCalculatedSize);
+            }
+            ctx.restore();
+        });
+
+        // 4. RENDER PARTIKEL EFEK LEDAKAN
+        particles.forEach(p => {
+            ctx.save(); 
+            ctx.globalAlpha = p.alpha; 
+            ctx.fillStyle = p.color;
+            ctx.beginPath(); 
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); 
+            ctx.fill();
+            ctx.restore();
+        });
+
+        // 5. RENDER VEHICLE / MOTOR PEMAIN (Posisi Tetap di Area Bawah)
+        if (isPlaying || startScreen.classList.contains("hidden")) {
+            ctx.save();
+            ctx.translate(riderX, 520);
+            ctx.shadowBlur = 20; 
+            ctx.shadowColor = COLOR_RIDER;
+            
+            // Gambar Desain Aerodinamis Motor Cyberpunk
+            ctx.fillStyle = COLOR_RIDER;
+            ctx.beginPath();
+            ctx.moveTo(-12, 15); 
+            ctx.lineTo(-8, -25); 
+            ctx.lineTo(8, -25); 
+            ctx.lineTo(12, 15);
+            ctx.closePath(); 
+            ctx.fill();
+
+            // Lampu Kaca Depan (Cyan light)
+            ctx.fillStyle = "#00f0ff";
+            ctx.fillRect(-5, -23, 10, 8);
+
+            // Api Jet Pendorong Belakang Knalpot yang Berkedip Dinamis
+            const flashingJetSize = Math.random() * 10 + 10;
+            ctx.fillStyle = "rgba(0, 240, 255, 0.6)";
+            ctx.beginPath();
+            ctx.moveTo(-6, 15); 
+            ctx.lineTo(0, 15 + flashingJetSize); 
+            ctx.lineTo(6, 15);
+            ctx.closePath(); 
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        ctx.restore();
+        ctx.shadowBlur = 0; // Matikan shadow blur global agar performa loop berikutnya tetap enteng
+    }
+
+    // ==========================================
+    // INFINITE MAIN GAME LOOP
+    // ==========================================
+    function mainGameLoop() {
+        updateGameLogic();
+        renderGraphics();
+        requestAnimationFrame(mainGameLoop);
+    }
+    
+    // Eksekusi siklus loop pertama kali saat dokumen HTML dimuat
+    mainGameLoop();
+</script>
+</body>
+</html>
