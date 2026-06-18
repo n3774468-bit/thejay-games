@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CYBER-SORT // OVERDRIVE ULTIMATE</title>
+    <style>
+        :root {
+            --cyan: #00f0ff;
+            --cyan-glow: rgba(0, 240, 255, 0.4);
+            --purple: #bd00ff;
+            --purple-glow: rgba(189, 0, 255, 0.4);
+            --green: #00ff66;
+            --green-glow: rgba(0, 255, 102, 0.4);
+            --virus: #ff0055;
+            --virus-glow: rgba(255, 0, 85, 0.5);
+            --bg-dark: #060713;
+            --panel-bg: rgba(10, 12, 32, 0.96);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Ambient Render Canvas Layer */
+        #game-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 440px;
+            height: 100vh;
+            max-height: 880px;
+            position: relative;
+            z-index: 2;
+            background: rgba(13, 16, 43, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 25px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        /* Game State Screens */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--panel-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 35px;
+            text-align: center;
+            z-index: 100;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .hidden { opacity: 0; pointer-events: none; display: none !important; }
+
+        h1 {
+            font-family: 'Courier New', monospace;
+            font-size: 2.6rem;
+            font-weight: 900;
+            letter-spacing: 5px;
+            color: #fff;
+            text-shadow: 0 0 15px var(--cyan-glow), 0 0 30px var(--cyan);
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-family: 'Courier New', monospace;
+            color: var(--purple);
+            font-size: 0.8rem;
+            letter-spacing: 6px;
+            margin-bottom: 35px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .rules-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--cyan);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            margin-bottom: 40px;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        .rules-card li { margin-bottom: 10px; color: #a0aec0; list-style: none; }
+        .rules-card strong { color: #fff; }
+
+        .cyber-btn {
+            background: transparent;
+            color: #fff;
+            border: 2px solid var(--cyan);
+            padding: 14px 45px;
+            font-size: 1rem;
+            font-weight: bold;
+            letter-spacing: 3px;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 15px var(--cyan-glow);
+        }
+        .cyber-btn:hover {
+            background: var(--cyan);
+            color: #000;
+            box-shadow: 0 0 30px var(--cyan);
+            transform: translateY(-2px);
+        }
+
+        /* Top HUD Layout */
+        header {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(5px);
+        }
+        .hud-title { color: rgba(255,255,255,0.4); font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; margin-bottom: 2px;}
+        .hud-digit { font-family: 'Courier New', monospace; font-size: 1.6rem; font-weight: 900; color: var(--cyan); }
+
+        /* Multiplier Badge Animation */
+        #combo-badge {
+            font-family: 'Courier New', monospace;
+            background: var(--purple);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 900;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            display: inline-block;
+            box-shadow: 0 0 10px var(--purple);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #combo-badge.pop { opacity: 1; transform: scale(1); }
+
+        /* Premium Router Portals Grid */
+        #portals-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 15px;
+        }
+        .portal-gate {
+            height: 75px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: all 0.2s ease;
+        }
+        .gate-cyan { border-bottom: 4px solid var(--cyan); color: var(--cyan); box-shadow: 0 4px 15px rgba(0, 240, 255, 0.1); }
+        .gate-purple { border-bottom: 4px solid var(--purple); color: var(--purple); box-shadow: 0 4px 15px rgba(189, 0, 255, 0.1); }
+        .gate-green { border-bottom: 4px solid var(--green); color: var(--green); box-shadow: 0 4px 15px rgba(0, 255, 102, 0.1); }
+        
+        .portal-gate.absorb {
+            transform: scale(1.05);
+            background: rgba(255,255,255,0.08);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Central Interaction Zone */
+        #action-sandbox {
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* High-fidelity Node - FIXED GLASSMORPHISM */
+        #data-packet {
+            width: 100px;
+            height: 100px;
+            border-radius: 20px;
+            position: absolute;
+            cursor: grab;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-weight: 800;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            z-index: 50;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            text-transform: uppercase;
+            transition: transform 0.05s ease-out, background-color 0.2s;
+        }
+        #data-packet:active { cursor: grabbing; }
+
+        /* Translucent Neon Node Variants Styles */
+        .style-cyan { 
+            background: rgba(0, 240, 255, 0.12); 
+            border: 2px solid var(--cyan); 
+            box-shadow: 0 0 25px var(--cyan-glow), inset 0 0 15px var(--cyan-glow); 
+            color: #ffffff;
+            text-shadow: 0 0 8px var(--cyan);
+        }
+        .style-purple { 
+            background: rgba(189, 0, 255, 0.12); 
+            border: 2px solid var(--purple); 
+            box-shadow: 0 0 25px var(--purple-glow), inset 0 0 15px var(--purple-glow); 
+            color: #ffffff;
+            text-shadow: 0 0 8px var(--purple);
+        }
+        .style-green { 
+            background: rgba(0, 255, 102, 0.12); 
+            border: 2px solid var(--green); 
+            box-shadow: 0 0 25px var(--green-glow), inset 0 0 15px var(--green-glow); 
+            color: #ffffff;
+            text-shadow: 0 0 8px var(--green);
+        }
+        .style-virus { 
+            background: rgba(255, 0, 85, 0.8); 
+            border: 2px solid #ffffff; 
+            box-shadow: 0 0 35px var(--virus-glow); 
+            color: #ffffff;
+            text-shadow: 0 0 8px rgba(0,0,0,0.6);
+            animation: glitchPulse 0.4s infinite alternate linear;
+        }
+
+        @keyframes glitchPulse {
+            0% { transform: scale(1) skewX(0deg); }
+            50% { transform: scale(1.04) skewX(-2deg); }
+            100% { transform: scale(0.98) skewX(2deg); }
+        }
+
+        /* Bottom Control Interface & Alert Displays */
+        #timeline-wrapper { width: 100%; height: 6px; background: rgba(255,255,255,0.04); border-radius: 10px; overflow: hidden; margin-bottom: 8px;}
+        #timeline-bar { width: 100%; height: 100%; background: var(--cyan); transition: width 0.08s linear, background-color 0.2s; }
+
+        #alert-console {
+            text-align: center; font-size: 0.8rem; font-weight: 700; letter-spacing: 2px; color: #626b8f; text-transform: uppercase; min-height: 20px;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Juice Shake Animations triggers */
+        .shake-impact { animation: intenseShake 0.2s linear; border-color: var(--virus) !important; box-shadow: 0 0 40px var(--virus-glow) !important;}
+        @keyframes intenseShake {
+            0%, 100% { transform: translate(0,0); }
+            20% { transform: translate(-8px, 6px); }
+            40% { transform: translate(8px, -6px); }
+            60% { transform: translate(-5px, -3px); }
+            80% { transform: translate(5px, 4px); }
+        }
+
+        .danger-pulse { animation: ambientRedPulse 0.6s infinite alternate; }
+        @keyframes ambientRedPulse {
+            0% { border-color: rgba(255,255,255,0.08); }
+            100% { border-color: var(--virus); box-shadow: inset 0 0 20px rgba(255,0,85,0.15), 0 0 20px rgba(255,0,85,0.15); }
+        }
+
+        footer { text-align: center; font-size: 0.6rem; color: rgba(255,255,255,0.15); letter-spacing: 2px; font-family: 'Courier New', monospace;}
+    </style>
+</head>
+<body>
+
+    <!-- Unified Particle Canvas Core Rendering -->
+    <canvas id="game-canvas"></canvas>
+
+    <div id="game-container">
+        <!-- START DASHBOARD SCREEN -->
+        <div id="welcome-screen" class="screen">
+            <h1>CYBER-SORT</h1>
+            <div class="subtitle">OVERDRIVE EDITION v2.0</div>
+            <div class="rules-card">
+                <ul>
+                    <li>⚡ <strong>Sort Packets:</strong> Drag and release the center core node to its matching colored top gateway portal.</li>
+                    <li>⚡ <strong>Virus Protocol:</strong> Do NOT drag <strong>RED Virus nodes</strong>. Double-tap/click them instantly to purge.</li>
+                    <li>⚡ <strong>Combo Multiplier:</strong> Keep sorting cleanly without failures to activate high-scoring Overdrive modes.</li>
+                </ul>
+            </div>
+            <button class="cyber-btn" onclick="triggerEngineStart()">Load Module</button>
+        </div>
+
+        <!-- SYSTEM FAILURE TERMINAL SCREEN -->
+        <div id="gameover-screen" class="screen hidden">
+            <h1 style="color: var(--virus); text-shadow: 0 0 20px var(--virus-glow);">CORE CRASHED</h1>
+            <div class="subtitle" style="color: #626b8f;">Buffer allocation capacity exceeded</div>
+            <div style="margin: 30px 0;">
+                <span class="hud-title">Data Synced</span>
+                <span id="final-score" style="font-size: 4rem; font-family:'Courier New', monospace; font-weight: 900; color: var(--cyan); display:block; text-shadow: 0 0 20px var(--cyan-glow);">0</span>
+            </div>
+            <button class="cyber-btn" style="border-color: var(--purple); box-shadow: 0 0 15px var(--purple-glow);" onclick="triggerEngineStart()">Flush & Hot-Reboot</button>
+        </div>
+
+        <!-- USER INTERFACE HEADS UP -->
+        <header>
+            <div>
+                <span class="hud-title">EXP PROCESS</span>
+                <div style="display:flex; align-items:center;">
+                    <span id="score-val" class="hud-digit">0</span>
+                    <span id="combo-badge">X1</span>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="hud-title">SYSTEM RECORD</span>
+                <div id="highscore-val" class="hud-digit" style="color: var(--purple);">0</div>
+            </div>
+        </header>
+
+        <!-- TOP GATEWAY ROUTERS -->
+        <div id="portals-grid">
+            <div class="portal-gate gate-cyan" id="gate-0">CYAN_DB</div>
+            <div class="portal-gate gate-purple" id="gate-1">PRPL_NET</div>
+            <div class="portal-gate gate-green" id="gate-2">GRN_CORE</div>
+        </div>
+
+        <!-- CORE INTERACTION VIEWPORT -->
+        <div id="action-sandbox">
+            <div id="data-packet" class="style-cyan">INIT</div>
+        </div>
+
+        <!-- REALTIME RUNTIME PROGRESS BAR -->
+        <div>
+            <div id="timeline-wrapper"><div id="timeline-bar"></div></div>
+            <div id="alert-console">SYSTEM CONSOLE STANDBY</div>
+        </div>
+
+        <footer>ARCH_MATRIX_DRIVE // SECURE CONNECTION</footer>
+    </div>
+
+    <script>
+        // Runtime Variables Configuration
+        let score = 0;
+        let highScore = 0;
+        let comboCount = 0;
+        let comboMultiplier = 1;
+        let isEngineActive = false;
+        let packetType = 0; // 0:Cyan, 1:Purple, 2:Green, 3:Virus
+        
+        let countdownTimer;
+        let currentTimerPct = 100;
+
+        // Visual Canvas Particle Systems setup
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        let ambientStars = [];
+        let bursts = [];
+
+        // DOM Framework References
+        const packetNode = document.getElementById('data-packet');
+        const sandbox = document.getElementById('action-sandbox');
+        const mainContainer = document.getElementById('game-container');
+        const scoreTxt = document.getElementById('score-val');
+        const highscoreTxt = document.getElementById('highscore-val');
+        const comboBadge = document.getElementById('combo-badge');
+        const runtimeProgressBar = document.getElementById('timeline-bar');
+        const consoleAlert = document.getElementById('alert-console');
+
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let curX = 0, curY = 0;
+
+        // HTML5 Audio Engine Context
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function runSynthBeep(frequency, waveType, lifespan) {
+            try {
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                let osc = audioCtx.createOscillator();
+                let gainNode = audioCtx.createGain();
+                osc.type = waveType || 'sine';
+                osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + lifespan);
+                osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + lifespan);
+            } catch(e){}
+        }
+
+        function triggerEngineStart() {
+            score = 0; comboCount = 0; comboMultiplier = 1;
+            scoreTxt.textContent = score;
+            updateComboBadgeDisplay();
+            
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+            mainContainer.classList.remove('danger-pulse');
+            
+            isEngineActive = true;
+            consoleAlert.textContent = "ROUTING SERVICES ACTIVE";
+            consoleAlert.style.color = "var(--cyan)";
+
+            resetNodeToOrigin();
+            generateNextDataPacket();
+            initiateTimelineCountdown();
+        }
+
+        function generateNextDataPacket() {
+            if (!isEngineActive) return;
+
+            let randomChance = Math.random();
+            if (randomChance < 0.26) {
+                packetType = 3; // Virus allocation
+                packetNode.className = "style-virus";
+                packetNode.innerHTML = "<span style='font-size:1.1rem; margin-bottom:2px;'>⚠</span>VIRUS";
+            } else if (randomChance < 0.50) {
+                packetType = 0;
+                packetNode.className = "style-cyan";
+                packetNode.textContent = "PACKET_CY";
+            } else if (randomChance < 0.75) {
+                packetType = 1;
+                packetNode.className = "style-purple";
+                packetNode.textContent = "CORE_PRPL";
+            } else {
+                packetType = 2;
+                packetNode.className = "style-green";
+                packetNode.textContent = "NODE_GRN";
+            }
+
+            currentTimerPct = 100;
+            runtimeProgressBar.style.width = '100%';
+            runtimeProgressBar.style.backgroundColor = 'var(--cyan)';
+        }
+
+        function initiateTimelineCountdown() {
+            clearInterval(countdownTimer);
+            countdownTimer = setInterval(() => {
+                if(!isEngineActive) return;
+
+                let speedScale = 0.6 + (score * 0.004);
+                currentTimerPct -= speedScale;
+                runtimeProgressBar.style.width = `${currentTimerPct}%`;
+
+                if(currentTimerPct < 30) {
+                    runtimeProgressBar.style.backgroundColor = 'var(--virus)';
+                    mainContainer.classList.add('danger-pulse');
+                } else {
+                    mainContainer.classList.remove('danger-pulse');
+                }
+
+                if(currentTimerPct <= 0) {
+                    processSystemFailure("BUFFER TIMEOUT ERROR");
+                }
+            }, 50);
+        }
+
+        // Pointer Context Input Mappings
+        packetNode.addEventListener('mousedown', processDragBegin);
+        window.addEventListener('mousemove', processDraggingMove);
+        window.addEventListener('mouseup', processDragTermination);
+
+        packetNode.addEventListener('touchstart', processDragBegin, {passive: false});
+        window.addEventListener('touchmove', processDraggingMove, {passive: false});
+        window.addEventListener('touchend', processDragTermination);
+
+        // Double Click / Double Tap Trigger Bindings
+        packetNode.addEventListener('dblclick', evaluateVirusPurgeAction);
+        let touchTimestamp = 0;
+        packetNode.addEventListener('touchstart', function(e) {
+            let modernTime = new Date().getTime();
+            let timediff = modernTime - touchTimestamp;
+            if(timediff < 240 && timediff > 0) evaluateVirusPurgeAction(e);
+            touchTimestamp = modernTime;
+        });
+
+        function processDragBegin(e) {
+            if(!isEngineActive) return;
+            isDragging = true;
+            let targetPointerX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+            let targetPointerY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+            startX = targetPointerX - curX;
+            startY = targetPointerY - curY;
+        }
+
+        function processDraggingMove(e) {
+            if(!isDragging || !isEngineActive) return;
+            if(e.cancelable) e.preventDefault();
+
+            let targetPointerX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+            let targetPointerY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+            curX = targetPointerX - startX;
+            curY = targetPointerY - startY;
+
+            packetNode.style.transform = `translate(${curX}px, ${curY}px)`;
+
+            let nodeBox = packetNode.getBoundingClientRect();
+            if(Math.random() < 0.4) {
+                createExplosionBurstParticles(nodeBox.left + (nodeBox.width/2), nodeBox.top + (nodeBox.height/2), 1, getActiveHexColor());
+            }
+        }
+
+        function processDragTermination() {
+            if(!isDragging) return;
+            isDragging = false;
+
+            let nodeBox = packetNode.getBoundingClientRect();
+            let gate0 = document.getElementById('gate-0').getBoundingClientRect();
+            let gate1 = document.getElementById('gate-1').getBoundingClientRect();
+            let gate2 = document.getElementById('gate-2').getBoundingClientRect();
+
+            let targetMidpointX = nodeBox.left + (nodeBox.width / 2);
+            let targetMidpointY = nodeBox.top + (nodeBox.height / 2);
+
+            if(targetMidpointY < gate0.bottom + 50) {
+                if(targetMidpointX > gate0.left && targetMidpointX < gate0.right) {
+                    evaluateSortRouting(0); return;
+                } else if(targetMidpointX > gate1.left && targetMidpointX < gate1.right) {
+                    evaluateSortRouting(1); return;
+                } else if(targetMidpointX > gate2.left && targetMidpointX < gate2.right) {
+                    evaluateSortRouting(2); return;
+                }
+            }
+            resetNodeToOrigin();
+        }
+
+        function evaluateSortRouting(gateId) {
+            if(packetType === 3) {
+                processSystemFailure("MALWARE CORRUPTED PORTAL");
+                return;
+            }
+
+            if(packetType === gateId) {
+                comboCount++;
+                if(comboCount >= 15) comboMultiplier = 5;
+                else if(comboCount >= 8) comboMultiplier = 3;
+                else if(comboCount >= 4) comboMultiplier = 2;
+
+                score += 20 * comboMultiplier;
+                scoreTxt.textContent = score;
+                if(score > highScore) {
+                    highScore = score;
+                    highscoreTxt.textContent = highScore;
+                }
+
+                updateComboBadgeDisplay();
+
+                let gateElement = document.getElementById(`gate-${gateId}`);
+                gateElement.classList.add('absorb');
+                setTimeout(() => gateElement.classList.remove('absorb'), 200);
+
+                let nodeBox = packetNode.getBoundingClientRect();
+                createExplosionBurstParticles(nodeBox.left + (nodeBox.width/2), nodeBox.top + (nodeBox.height/2), 15, getActiveHexColor());
+
+                runSynthBeep(523.25 + (comboCount * 15), 'sine', 0.08);
+                setTimeout(() => runSynthBeep(783.99 + (comboCount * 15), 'sine', 0.06), 40);
+
+                resetNodeToOrigin();
+                generateNextDataPacket();
+            } else {
+                processSystemFailure("COLLISION ERR - MISMATCH ROUTE");
+            }
+        }
+
+        function evaluateVirusPurgeAction(e) {
+            if(!isEngineActive) return;
+            if(packetType === 3) {
+                comboCount++;
+                score += 20 * comboMultiplier;
+                scoreTxt.textContent = score;
+
+                consoleAlert.textContent = `VIRUS EXTRACTED [x${comboMultiplier}]`;
+                consoleAlert.style.color = "var(--green)";
+
+                let nodeBox = packetNode.getBoundingClientRect();
+                createExplosionBurstParticles(nodeBox.left + (nodeBox.width/2), nodeBox.top + (nodeBox.height/2), 25, '#ff0055');
+
+                runSynthBeep(880, 'sawtooth', 0.04);
+                runSynthBeep(440, 'triangle', 0.1);
+
+                resetNodeToOrigin();
+                generateNextDataPacket();
+            }
+        }
+
+        function updateComboBadgeDisplay() {
+            if(comboMultiplier > 1) {
+                comboBadge.textContent = `X${comboMultiplier}`;
+                comboBadge.className = "pop";
+                comboBadge.style.background = comboMultiplier === 5 ? "var(--green)" : "var(--purple)";
+            } else {
+                comboBadge.className = "";
+                comboBadge.style.opacity = 0;
+            }
+        }
+
+        function getActiveHexColor() {
+            if(packetType === 0) return '#00f0ff';
+            if(packetType === 1) return '#bd00ff';
+            if(packetType === 2) return '#00ff66';
+            return '#ff0055';
+        }
+
+        function resetNodeToOrigin() {
+            curX = 0; curY = 0;
+            packetNode.style.transform = `translate(0px, 0px)`;
+        }
+
+        function processSystemFailure(failLogString) {
+            isEngineActive = false;
+            clearInterval(countdownTimer);
+            
+            mainContainer.classList.add('shake-impact');
+            setTimeout(() => mainContainer.classList.remove('shake-impact'), 220);
+
+            runSynthBeep(180, 'sawtooth', 0.3);
+            setTimeout(() => runSynthBeep(90, 'sawtooth', 0.4), 120);
+
+            consoleAlert.textContent = failLogString;
+            consoleAlert.style.color = "var(--virus)";
+            document.getElementById('final-score').textContent = score;
+
+            setTimeout(() => {
+                document.getElementById('gameover-screen').classList.remove('hidden');
+            }, 750);
+        }
+
+        // Context Engine Graphics Rendering Loops
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        for(let s=0; s<40; s++) {
+            ambientStars.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                speed: 0.2 + Math.random() * 0.5,
+                radius: 0.8 + Math.random() * 1.5
+            });
+        }
+
+        function createExplosionBurstParticles(originX, originY, dynamicCount, targetedHex) {
+            for(let p=0; p < dynamicCount; p++) {
+                let vectorAngle = Math.random() * Math.PI * 2;
+                let vectorVelocity = 2 + Math.random() * 6;
+                bursts.push({
+                    x: originX,
+                    y: originY,
+                    vx: Math.cos(vectorAngle) * vectorVelocity,
+                    vy: Math.sin(vectorAngle) * vectorVelocity,
+                    alpha: 1,
+                    decay: 0.02 + Math.random() * 0.03,
+                    size: 2 + Math.random() * 4,
+                    color: targetedHex
+                });
+            }
+        }
+
+        function renderFrameLoop() {
+            ctx.clearRect(0,0, canvas.width, canvas.height);
+
+            // Render Backplane Matrix Ambient Points
+            ctx.fillStyle = "rgba(0, 191, 255, 0.25)";
+            ambientStars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI*2);
+                ctx.fill();
+                star.y += star.speed;
+                if(star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; }
+            });
+
+            // Render Active Explosive Micro Sparks Vector Layer
+            bursts.forEach((spark, index) => {
+                ctx.fillStyle = spark.color;
+                ctx.globalAlpha = spark.alpha;
+                ctx.fillRect(spark.x, spark.y, spark.size, spark.size);
+                
+                spark.x += spark.vx;
+                spark.y += spark.vy;
+                spark.alpha -= spark.decay;
+
+                if(spark.alpha <= 0) bursts.splice(index, 1);
+            });
+            ctx.globalAlpha = 1.0; 
+
+            requestAnimationFrame(renderFrameLoop);
+        }
+        renderFrameLoop();
+    </script>
+</body>
+</html>
