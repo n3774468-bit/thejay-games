@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Scrapper: Magnet Craft</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+  body {
+         margin: 0;
+        padding: 0;
+        background-color: #05010a;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+         justify-content: center;
+         align-items: center;
+         height: 100vh;
+        overflow: hidden;
+         color: #ffffff;
+        }
+  #game-container {
+            position: relative;
+            width: 450px;
+            height: 650px;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #00f0ff;
+        }
+        canvas {
+            display: block;
+            background: #0d021a;
+            width: 100%;
+            height: 100%;
+        }
+     .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(13, 2, 26, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 30px;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+        .hidden {
+            display: none !important;
+            opacity: 0;
+            pointer-events: none;
+        }
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 15px #b800ff, 0 0 5px #00f0ff;
+        }
+        .subtitle {
+            font-size: 1.1rem;
+            color: #00f0ff;
+            margin-bottom: 30px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+       .instructions {
+         background: rgba(184, 0, 255, 0.1);
+         border: 1px solid rgba(184, 0, 255, 0.4);
+         border-radius: 8px;
+         padding: 20px;
+            margin-bottom: 35px;
+            text-align: left;
+            width: 100%;
+            box-shadow: inset 0 0 10px rgba(184, 0, 255, 0.2);
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #00f0ff;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .instructions ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #e0d5ed;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        .btn {
+            background: transparent;
+            border: 2px solid #00f0ff;
+            color: #00f0ff;
+            padding: 12px 40px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            background: #00f0ff;
+            color: #0d021a;
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.6);
+            transform: scale(1.05);
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+        #game-over-screen h1 {
+            color: #ff0055;
+            text-shadow: 0 0 15px #ff0055;
+        }
+        .score-display {
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+        .high-score-display {
+            font-size: 1.1rem;
+            color: #b800ff;
+            margin-bottom: 40px;
+            text-shadow: 0 0 5px rgba(184, 0, 255, 0.5);
+        }
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            pointer-events: none;
+            z-index: 5;
+            text-shadow: 0 0 5px #000;
+        }
+        .hud-score { color: #ffffff; }
+        .hud-hp { color: #ff0055; }
+        .hud-high { color: #b800ff; }
+        .hud-center { text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .hud-status { color: #ffff00; font-size: 0.8rem; margin-top: 3px; font-weight: bold; height: 15px;}
+        .hud-combo { color: #00f0ff; font-size: 0.85rem; font-weight: 900; margin-top: 2px; text-shadow: 0 0 5px rgba(0, 240, 255, 0.5); }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud" class="hidden">
+        <div>SCORE: <span id="hud-score-val" class="hud-score">0</span></div>
+        <div class="hud-center">
+            <div>HP: <span id="hud-hp-val" class="hud-hp">3</span></div>
+            <div id="hud-combo-val" class="hud-combo"></div>
+            <div id="hud-status-val" class="hud-status"></div>
+        </div>
+        <div>HI-SCORE: <span id="hud-high-val" class="hud-high">0</span></div>
+    </div>
+
+    <div id="start-screen" class="screen">
+        <h1>Space Scrapper</h1>
+        <div class="subtitle">Magnet Craft</div>
+        
+        <div class="instructions">
+            <h3>How to Play:</h3>
+            <ul>
+                <li>Move your ship using your <b>Mouse Pointer</b> or <b>Touch</b>.</li>
+                <li>Attract and collect <b>Bright Purple Crystals</b> for points.</li>
+                <li>Avoid flying <b>Red Asteroids</b> or you will lose HP.</li>
+                <li>Dapatkan Kristal beruntun untuk melipatgandakan <b>COMBO MULTI!</b></li>
+                <li>Ambil <b>M (Kuning)</b> untuk Magnet Jauh & <b>S (Putih)</b> untuk Shield!</li>
+            </ul>
+        </div>
+        
+        <button id="start-btn" class="btn">Start Game</button>
+    </div>
+
+    <div id="game-over-screen" class="screen hidden">
+        <h1>Game Over</h1>
+        <div class="subtitle">Scrapper Ship Destroyed</div>
+        
+        <div class="score-display">Final Score: <span id="final-score-val">0</span></div>
+        <div class="high-score-display">High Score: <span id="final-high-val">0</span></div>
+        
+        <button id="restart-btn" class="btn">Play Again</button>
+    </div>
+
+    <canvas id="gameCanvas" width="450" height="650"></canvas>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // UI Elements
+    const startScreen = document.getElementById("start-screen");
+    const gameOverScreen = document.getElementById("game-over-screen");
+    const hud = document.getElementById("hud");
+    const startBtn = document.getElementById("start-btn");
+    const restartBtn = document.getElementById("restart-btn");
+    
+    const hudScoreVal = document.getElementById("hud-score-val");
+    const hudHpVal = document.getElementById("hud-hp-val");
+    const hudHighVal = document.getElementById("hud-high-val");
+    const hudStatusVal = document.getElementById("hud-status-val");
+    const hudComboVal = document.getElementById("hud-combo-val");
+    const finalScoreVal = document.getElementById("final-score-val");
+    const finalHighVal = document.getElementById("final-high-val");
+
+    
+    const COLOR_BG = "#0d021a";
+    const COLOR_SHIP = "#00f0ff";
+    const COLOR_SCRAP = "#b800ff";
+    const COLOR_TEXT = "#ffffff";
+    const COLOR_HAZARD = "#ff0055";
+    const COLOR_POWERUP_MAGNET = "#ffff00";
+    const COLOR_POWERUP_SHIELD = "#ffffff";
+
+    
+    let audioCtx = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function playSound(type) {
+        if (!audioCtx) return;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'scrap') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(500 + (comboCount * 50), audioCtx.currentTime); // Nada makin tinggi jika combo naik
+            osc.frequency.exponentialRampToValueAtTime(1000 + (comboCount * 50), audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+        } else if (type === 'hit') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(20, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+      } else if (type === 'powerup') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(880, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+        }
+    }
+
+    
+    let score = 0;
+    let highScore = localStorage.getItem("scrapper_highscore") || 0;
+    let hp = 3;
+    let isPlaying = false;
+    
+    let comboCount = 0;
+    let comboMultiplier = 1;
+    let screenShakeLeft = 0;
+
+    const BASE_MAGNET_RADIUS = 120;
+    let player = { 
+        x: 225, 
+        y: 550, 
+        radius: 18, 
+        magnetRadius: BASE_MAGNET_RADIUS,
+        hasShield: false,
+        magnetBoostTimer: 0
+    };
+
+    let items = [];
+    let particles = [];
+    let stars = [];
+    let floatingTexts = [];
+    let spawnTimer = 0;
+    let gameSpeedMultiplier = 1.0;
+
+    hudHighVal.innerText = highScore;
+
+ for (let i = 0; i < 40; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 1.5 + 0.5,
+            speed: Math.random() * 1 + 0.5
+        });
+    }
+
+    startBtn.addEventListener("click", () => { initAudio(); startGame(); });
+    restartBtn.addEventListener("click", () => { startGame(); });
+
+    function updateMouse(clientX, clientY) {
+        if (!isPlaying) return;
+        const rect = canvas.getBoundingClientRect();
+        player.x = (clientX - rect.left) * (canvas.width / rect.width);
+        player.y = (clientY - rect.top) * (canvas.height / rect.height);
+
+        if (player.x < player.radius) player.x = player.radius;
+        if (player.x > canvas.width - player.radius) player.x = canvas.width - player.radius;
+        if (player.y < player.radius) player.y = player.radius;
+        if (player.y > canvas.height - player.radius) player.y = canvas.height - player.radius;
+    }
+
+    canvas.addEventListener("mousemove", (e) => updateMouse(e.clientX, e.clientY));
+    canvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        updateMouse(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+
+ function startGame() {
+        score = 0;
+        hp = 3;
+        comboCount = 0;
+        comboMultiplier = 1;
+        screenShakeLeft = 0;
+        items = [];
+        particles = [];
+        floatingTexts = [];
+        gameSpeedMultiplier = 1.0;
+        player.hasShield = false;
+        player.magnetBoostTimer = 0;
+        player.magnetRadius = BASE_MAGNET_RADIUS;
+        isPlaying = true;
+        
+        hudScoreVal.innerText = score;
+        hudHpVal.innerText = hp;
+        hudComboVal.innerText = "";
+        hudStatusVal.innerText = "";
+        
+        startScreen.classList.add("hidden");
+        gameOverScreen.classList.add("hidden");
+        hud.classList.remove("hidden");
+    }
+
+    function triggerGameOver() {
+        isPlaying = false;
+        hud.classList.add("hidden");
+        gameOverScreen.classList.remove("hidden");
+        
+        finalScoreVal.innerText = score;
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("scrapper_highscore", highScore);
+            hudHighVal.innerText = highScore;
+        }
+        finalHighVal.innerText = highScore;
+    }
+
+    function createExplosion(x, y, color, count = 8) {
+        for (let i = 0; i < count; i++) {
+            let angle = Math.random() * Math.PI * 2;
+            let speed = Math.random() * 3 + 1;
+            particles.push({
+                x: x, y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                radius: Math.random() * 2 + 1.5,
+                color: color,
+                alpha: 1,
+                decay: Math.random() * 0.03 + 0.02
+            });
+        }
+    }
+
+    function addFloatingText(x, y, text, color) {
+        floatingTexts.push({
+            x: x, y: y, text: text, color: color, alpha: 1, vy: -1
+        });
+    }
+
+    function spawnItem() {
+        let rand = Math.random();
+        let type = "scrap";
+        
+        if (rand < 0.30) {
+            type = "hazard";
+        } else if (rand > 0.96) {
+            type = "pw_magnet";
+        } else if (rand > 0.93 && rand <= 0.96) {
+            type = "pw_shield";
+        }
+
+        items.push({
+            x: Math.random() * (canvas.width - 40) + 20,
+            y: -25,
+            radius: type === "hazard" ? Math.random() * 10 + 12 : (type === "scrap" ? Math.random() * 4 + 6 : 10),
+            vx: 0,
+            vy: (type === "hazard" ? Math.random() * 1.5 + 2.3 : Math.random() * 1 + 1.5) * gameSpeedMultiplier,
+            type: type,
+            isAttracted: false
+        });
+    }
+
+    function update() {
+        stars.forEach(star => {
+            star.y += star.speed * (isPlaying ? gameSpeedMultiplier : 0.5);
+            if (star.y > canvas.height) {
+                star.y = 0;
+                star.x = Math.random() * canvas.width;
+            }
+        });
+
+        if (!isPlaying) return;
+
+        gameSpeedMultiplier = 1.0 + (score * 0.001);
+
+        if (screenShakeLeft > 0) screenShakeLeft--;
+
+        if (player.magnetBoostTimer > 0) {
+            player.magnetBoostTimer--;
+            player.magnetRadius = BASE_MAGNET_RADIUS * 2;
+            hudStatusVal.innerText = `MAGNET BOOST: ${Math.ceil(player.magnetBoostTimer/60)}s`;
+            if (player.magnetBoostTimer <= 0) {
+                player.magnetRadius = BASE_MAGNET_RADIUS;
+                hudStatusVal.innerText = player.hasShield ? "SHIELD ACTIVE" : "";
+            }
+        }
+
+        spawnTimer++;
+        let currentSpawnInterval = Math.max(18, 40 - Math.floor(score * 0.015));
+        if (spawnTimer > currentSpawnInterval) { 
+            spawnItem();
+            spawnTimer = 0;
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i]; p.x += p.vx; p.y += p.vy; p.alpha -= p.decay;
+            if (p.alpha <= 0) particles.splice(i, 1);
+        }
+
+        for (let i = floatingTexts.length - 1; i >= 0; i--) {
+            let ft = floatingTexts[i]; ft.y += ft.vy; ft.alpha -= 0.02;
+            if (ft.alpha <= 0) floatingTexts.splice(i, 1);
+        }
+
+        for (let i = items.length - 1; i >= 0; i--) {
+            let item = items[i];
+            let dx = player.x - item.x;
+            let dy = player.y - item.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (item.type !== "hazard" && distance < player.magnetRadius) {
+                item.isAttracted = true;
+                let force = (player.magnetRadius - distance) / player.magnetRadius;
+                let angle = Math.atan2(dy, dx);
+                item.vx += Math.cos(angle) * force * 0.8;
+                item.vy += Math.sin(angle) * force * 0.8;
+                item.vx *= 0.93; item.vy *= 0.93;
+            } else {
+                item.isAttracted = false;
+            }
+
+            item.x += item.vx;
+            item.y += item.vy;
+
+            if (distance < player.radius + item.radius) {
+                if (item.type === "scrap") {
+                    comboCount++;
+                    comboMultiplier = Math.min(5, 1 + Math.floor(comboCount / 5)); // Combo naik setiap 5 serpihan
+                    
+                    let pointsGained = 10 * comboMultiplier;
+                    score += pointsGained;
+                    
+                    hudScoreVal.innerText = score;
+                    hudComboVal.innerText = comboMultiplier > 1 ? `COMBO X${comboMultiplier}` : "";
+                    
+                    playSound('scrap');
+                    createExplosion(item.x, item.y, COLOR_SCRAP, 6);
+                    addFloatingText(item.x, item.y, `+${pointsGained}`, comboMultiplier > 2 ? COLOR_SHIP : COLOR_TEXT);
+
+                } else if (item.type === "hazard") {
+                    comboCount = 0;
+                    comboMultiplier = 1;
+                    hudComboVal.innerText = "";
+                    screenShakeLeft = 12; 
+
+                    if (player.hasShield) {
+                        player.hasShield = false;
+                        hudStatusVal.innerText = player.magnetBoostTimer > 0 ? "MAGNET BOOST" : "";
+                        playSound('hit');
+                        createExplosion(player.x, player.y, COLOR_POWERUP_SHIELD, 15);
+                        addFloatingText(player.x, player.y, "SHIELD BROKEN", COLOR_POWERUP_SHIELD);
+                    } else {
+                        hp--;
+                        hudHpVal.innerText = hp;
+                        playSound('hit');
+                        createExplosion(item.x, item.y, COLOR_HAZARD, 20);
+                        addFloatingText(player.x, player.y, "-1 HP", COLOR_HAZARD);
+                        if (hp <= 0) triggerGameOver();
+                    }
+                } else if (item.type === "pw_magnet") {
+                    player.magnetBoostTimer = 360;
+                    playSound('powerup');
+                    createExplosion(item.x, item.y, COLOR_POWERUP_MAGNET, 10);
+                    addFloatingText(item.x, item.y, "MAGNET BOOST!", COLOR_POWERUP_MAGNET);
+                } else if (item.type === "pw_shield") {
+                    player.hasShield = true;
+                    if (player.magnetBoostTimer <= 0) hudStatusVal.innerText = "SHIELD ACTIVE";
+                    playSound('powerup');
+                    createExplosion(item.x, item.y, COLOR_POWERUP_SHIELD, 10);
+                    addFloatingText(item.x, item.y, "SHIELD ACTIVE", COLOR_POWERUP_SHIELD);
+                }
+                
+                items.splice(i, 1);
+                continue;
+            }
+
+            if (item.y > canvas.height + 30) {
+                items.splice(i, 1);
+            }
+        }
+    }
+
+    function draw() {
+        ctx.save();
+        
+        if (screenShakeLeft > 0) {
+            let dx = (Math.random() - 0.5) * 7;
+            let dy = (Math.random() - 0.5) * 7;
+            ctx.translate(dx, dy);
+        }
+
+        ctx.fillStyle = COLOR_BG;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+        stars.forEach(star => { ctx.fillRect(star.x, star.y, star.size, star.size); });
+
+        if (!isPlaying) { ctx.restore(); return; }
+
+        items.forEach(item => {
+            if (item.type === "hazard" && item.y < 0) {
+                ctx.save();
+                ctx.fillStyle = "rgba(255, 0, 85, " + (Math.abs(Math.sin(Date.now() * 0.015))) + ")";
+                ctx.font = "bold 16px sans-serif";
+                ctx.fillText("!", item.x - 4, 20);
+                ctx.restore();
+            }
+        });
+
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.magnetRadius, 0, Math.PI * 2);
+        let pulseColor = player.magnetBoostTimer > 0 ? "255, 255, 0" : "0, 240, 255";
+        let pulse = 0.08 + Math.sin(Date.now() * 0.015) * 0.03;
+        ctx.strokeStyle = `rgba(${pulseColor}, ${pulse})`;
+        ctx.lineWidth = player.magnetBoostTimer > 0 ? 4 : 2;
+        ctx.stroke(); ctx.closePath();
+
+        if (player.hasShield) {
+            ctx.save(); ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = COLOR_POWERUP_SHIELD;
+            ctx.stroke(); ctx.restore();
+        }
+
+        ctx.save(); ctx.translate(player.x, player.y);
+        ctx.shadowBlur = 20; ctx.shadowColor = COLOR_SHIP; ctx.fillStyle = COLOR_SHIP;
+        ctx.beginPath();
+        ctx.moveTo(0, -22); ctx.lineTo(-18, 12); ctx.lineTo(-8, 6); ctx.lineTo(8, 6); ctx.lineTo(18, 12);
+        ctx.closePath(); ctx.fill();
+
+        ctx.shadowBlur = 5; ctx.fillStyle = COLOR_TEXT;
+        ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(-5, 4); ctx.lineTo(5, 4); ctx.closePath(); ctx.fill();
+
+        let thrusterHeight = Math.random() * 10 + 8;
+        ctx.fillStyle = COLOR_HAZARD; ctx.shadowColor = COLOR_HAZARD;
+        ctx.beginPath(); ctx.moveTo(-4, 8); ctx.lineTo(0, 8 + thrusterHeight); ctx.lineTo(4, 8); ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        items.forEach(item => {
+            ctx.save(); ctx.translate(item.x, item.y);
+
+            if (item.type === "scrap") {
+                ctx.shadowBlur = item.isAttracted ? 18 : 6; ctx.shadowColor = COLOR_SCRAP;
+                ctx.fillStyle = item.isAttracted ? COLOR_TEXT : COLOR_SCRAP;
+                ctx.beginPath();
+                ctx.moveTo(0, -item.radius); ctx.lineTo(item.radius * 0.8, 0); ctx.lineTo(0, item.radius); ctx.lineTo(-item.radius * 0.8, 0);
+                ctx.closePath(); ctx.fill();
+            } else if (item.type === "hazard") {
+                ctx.shadowBlur = 12; ctx.shadowColor = COLOR_HAZARD; ctx.fillStyle = COLOR_HAZARD;
+                ctx.beginPath();
+                let points = 8; 
+                for (let j = 0; j < points; j++) {
+                    let angle = (j / points) * Math.PI * 2;
+                    let r = item.radius * (0.8 + (j % 2 === 0 ? 0.3 : 0)); 
+                    let currX = Math.cos(angle) * r; let currY = Math.sin(angle) * r;
+                    if (j === 0) ctx.moveTo(currX, currY); else ctx.lineTo(currX, currY);
+                }
+                ctx.closePath(); ctx.fill();
+
+                // Craters
+                ctx.fillStyle = "#4a001a"; ctx.beginPath();
+                ctx.arc(-item.radius * 0.3, -item.radius * 0.2, item.radius * 0.25, 0, Math.PI * 2);
+                ctx.arc(item.radius * 0.2, item.radius * 0.3, item.radius * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (item.type === "pw_magnet") {
+                ctx.shadowBlur = 15; ctx.shadowColor = COLOR_POWERUP_MAGNET; ctx.fillStyle = COLOR_POWERUP_MAGNET;
+                ctx.fillRect(-8, -8, 16, 16);
+                ctx.fillStyle = "#000"; ctx.font = "bold 12px sans-serif"; ctx.fillText("M", -5, 4);
+            } else if (item.type === "pw_shield") {
+                ctx.shadowBlur = 15; ctx.shadowColor = COLOR_POWERUP_SHIELD; ctx.fillStyle = COLOR_POWERUP_SHIELD;
+                ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#000"; ctx.font = "bold 11px sans-serif"; ctx.fillText("S", -4, 4);
+            }
+            ctx.restore();
+        });
+
+ particles.forEach(p => {
+            ctx.save(); ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        });
+
+        
+    floatingTexts.forEach(ft => {
+        ctx.save(); ctx.globalAlpha = ft.alpha; ctx.fillStyle = ft.color;
+        ctx.font = "bold 14px sans-serif";
+         ctx.fillText(ft.text, ft.x - 10, ft.y);
+        ctx.restore();
+        });
+
+        ctx.restore(); 
+        ctx.shadowBlur = 0;
+    }
+
+    function gameLoop() {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+</script>
+</body>
+</html>
