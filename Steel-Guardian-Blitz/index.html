@@ -466,14 +466,13 @@ loop();
 
 function startGame(){
     document.getElementById("menu").style.display="none";
+    document.getElementById("gameover").style.display="none";
     initGame();
 }
-function startGame(){
 
-    document.getElementById("menu").style.display="none";
-
+// Menambahkan fungsi restart agar tombol 'Play Again' bekerja
+function restartGame(){
     document.getElementById("gameover").style.display="none";
-
     initGame();
 }
 
