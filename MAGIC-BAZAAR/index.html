@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Magic Bazaar - Hidden Objects</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        body {
+            background-color: #060210;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 12px;
+        }
+
+        .game-card {
+            width: 100%;
+            max-width: 420px;
+            background: linear-gradient(145deg, #1d0a3a, #0b0416);
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 0, 170, 0.2);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .level-indicator { color: #ff00aa; }
+        .timer-indicator { color: #00ffcc; }
+        .score-indicator { color: #ffff00; }
+
+        .list-container {
+            background: #120626;
+            border: 2px solid #ff00aa;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .list-title {
+            font-size: 11px;
+            color: #ff00aa;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .items-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .item-node {
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .item-node.checked {
+            text-decoration: line-through;
+            opacity: 0.3;
+            background: #00ffcc !important;
+            color: #000000 !important;
+            border-color: #00ffcc;
+        }
+
+        .viewport {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3 / 4;
+            background: #0c0418;
+            border: 4px solid #3d1b6d;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .view-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(11, 4, 22, 0.96);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            text-align: center;
+            z-index: 5;
+        }
+
+        .view-overlay.hidden {
+            display: none !important;
+        }
+
+        .view-overlay h1 {
+            font-size: 28px;
+            color: #ff00aa;
+            text-shadow: 0 0 8px rgba(255, 0, 170, 0.6);
+            margin-bottom: 8px;
+        }
+
+        .view-overlay p {
+            font-size: 13px;
+            color: #bca0ff;
+            line-height: 1.5;
+            max-width: 290px;
+            margin-bottom: 20px;
+        }
+
+        .action-btn {
+            background: linear-gradient(90deg, #ff00aa, #00ffcc);
+            border: none;
+            color: #ffffff;
+            padding: 12px 36px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(255, 0, 170, 0.3);
+            transition: transform 0.1s ease;
+        }
+
+        .action-btn:active {
+            transform: scale(0.96);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-card">
+        <div class="hud">
+            <div class="level-indicator">STAGE: <span id="lblLevel">1/3</span></div>
+            <div class="timer-indicator">TIME: <span id="lblTime">45</span>s</div>
+            <div class="score-indicator">SCORE: <span id="lblScore">0</span></div>
+        </div>
+
+        <div class="list-container">
+            <div class="list-title">WANTED ARTIFACTS</div>
+            <div class="items-grid" id="uiGrid"></div>
+        </div>
+
+        <div class="viewport">
+            <!-- Screen States -->
+            <div id="screenStart" class="view-overlay">
+                <h1>MAGIC BAZAAR</h1>
+                <p>Locate all hidden magical anomalies hidden across the night market stalls before time runs out. Avoid clicking blindly!</p>
+                <button class="action-btn" id="btnStart">ENTER BAZAAR</button>
+            </div>
+
+            <div id="screenIntermission" class="view-overlay hidden">
+                <h1 id="intermissionTitle">STAGE CLEARED</h1>
+                <p id="intermissionDesc"></p>
+                <button class="action-btn" id="btnNext">NEXT STAGE</button>
+            </div>
+
+            <div id="screenEnd" class="view-overlay hidden">
+                <h1 id="endTitle">GAME OVER</h1>
+                <p id="endDesc"></p>
+                <button class="action-btn" id="btnRestart">TRY AGAIN</button>
+            </div>
+
+            <canvas id="gameCanvas" width="450" height="600"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Selectors
+        const lblTime = document.getElementById('lblTime');
+        const lblScore = document.getElementById('lblScore');
+        const lblLevel = document.getElementById('lblLevel');
+        const uiGrid = document.getElementById('uiGrid');
+        
+        const screenStart = document.getElementById('screenStart');
+        const screenIntermission = document.getElementById('screenIntermission');
+        const screenEnd = document.getElementById('screenEnd');
+        
+        const intermissionTitle = document.getElementById('intermissionTitle');
+        const intermissionDesc = document.getElementById('intermissionDesc');
+        const endTitle = document.getElementById('endTitle');
+        const endDesc = document.getElementById('endDesc');
+        
+        const btnStart = document.getElementById('btnStart');
+        const btnNext = document.getElementById('btnNext');
+        const btnRestart = document.getElementById('btnRestart');
+
+        // State variables
+        let isPlaying = false;
+        let score = 0;
+        let currentLevel = 1;
+        let timeRemaining = 45;
+        let ticker = null;
+        let audioCtx = null;
+        let levelItems = [];
+
+        // Level manifest mapping
+        const maps = {
+            1: {
+                timeLimit: 50,
+                brief: "Stage 1: The Alchemist's Shelf. Spot 3 hidden items.",
+                pool: [
+                    { id: 'item_1', name: '🔮 Purple Vial', x: 85, y: 315, r: 16, color: '#bc13fe', shape: 'circle' },
+                    { id: 'item_2', name: '🥚 Basilisk Egg', x: 375, y: 445, r: 15, color: '#00ffcc', shape: 'egg' },
+                    { id: 'item_3', name: '🧙‍♂️ Mage Hat', x: 220, y: 155, r: 20, color: '#3d1b6d', shape: 'triangle' }
+                ]
+            },
+            2: {
+                timeLimit: 40,
+                brief: "Stage 2: The Crystal Booth. Crowds are building up! Find 4 items.",
+                pool: [
+                    { id: 'item_1', name: '🔮 Purple Vial', x: 85, y: 315, r: 15, color: '#bc13fe', shape: 'circle' },
+                    { id: 'item_2', name: '🥚 Basilisk Egg', x: 375, y: 445, r: 14, color: '#00ffcc', shape: 'egg' },
+                    { id: 'item_4', name: '📖 Lost Journal', x: 285, y: 305, w: 30, h: 20, color: '#ff5e00', shape: 'rect' },
+                    { id: 'item_5', name: '💎 Leyline Crystal', x: 75, y: 440, r: 12, color: '#00d2ff', shape: 'diamond' }
+                ]
+            },
+            3: {
+                timeLimit: 30,
+                brief: "Stage 3: Midnight Lockdown. Shadows are deep. Find 6 items.",
+                pool: [
+                    { id: 'item_1', name: '🔮 Purple Vial', x: 85, y: 315, r: 13, color: '#bc13fe', shape: 'circle' },
+                    { id: 'item_2', name: '🥚 Basilisk Egg', x: 375, y: 445, r: 12, color: '#00ffcc', shape: 'egg' },
+                    { id: 'item_3', name: '🧙‍♂️ Mage Hat', x: 220, y: 155, r: 16, color: '#3d1b6d', shape: 'triangle' },
+                    { id: 'item_4', name: '📖 Lost Journal', x: 285, y: 305, w: 26, h: 18, color: '#ff5e00', shape: 'rect' },
+                    { id: 'item_5', name: '💎 Leyline Crystal', x: 75, y: 440, r: 11, color: '#00d2ff', shape: 'diamond' },
+                    { id: 'item_6', name: '⭐ Solar Emblem', x: 360, y: 140, r: 10, color: '#ffff00', shape: 'star' }
+                ]
+            }
+        };
+
+        // Standard synthesizer helper for arcade tones
+        function synth(fStart, fEnd, wave, duration) {
+            if (!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.type = wave;
+                osc.frequency.setValueAtTime(fStart, audioCtx.currentTime);
+                if (fEnd) osc.frequency.exponentialRampToValueAtTime(fEnd, audioCtx.currentTime + duration);
+                
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) { console.log(e); }
+        }
+
+        function setupLevel(index) {
+            currentLevel = index;
+            lblLevel.innerText = `${currentLevel}/3`;
+            timeRemaining = maps[currentLevel].timeLimit;
+            lblTime.innerText = timeRemaining;
+            
+            // Unlink array references clean clone
+            levelItems = JSON.parse(JSON.stringify(maps[currentLevel].pool));
+            levelItems.forEach(i => i.found = false);
+
+            updateHUDGrid();
+            renderViewport();
+        }
+
+        function runGameCycle() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            score = 0;
+            lblScore.innerText = score;
+            
+            screenStart.classList.add('hidden');
+            screenEnd.classList.add('hidden');
+            screenIntermission.classList.add('hidden');
+            
+            setupLevel(1);
+            startTicker();
+        }
+
+        function startTicker() {
+            isPlaying = true;
+            clearInterval(ticker);
+            ticker = setInterval(() => {
+                if (!isPlaying) return;
+                timeRemaining--;
+                lblTime.innerText = timeRemaining;
+                if (timeRemaining <= 0) completeSession(false);
+            }, 1000);
+        }
+
+        function updateHUDGrid() {
+            uiGrid.innerHTML = '';
+            levelItems.forEach(item => {
+                const el = document.createElement('div');
+                el.className = `item-node ${item.found ? 'checked' : ''}`;
+                el.innerText = item.name;
+                uiGrid.appendChild(el);
+            });
+        }
+
+        // Draw routine for background scene layout
+        function renderViewport() {
+            ctx.fillStyle = '#0a0416';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Background sky stars field
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+            for(let i = 0; i < 30; i++) {
+                ctx.fillRect((i * 43) % canvas.width, (i * 17) % 190, 2, 2);
+            }
+
+            // Big Central Market Tent
+            ctx.fillStyle = '#200b3b';
+            ctx.beginPath(); ctx.moveTo(130, 200); ctx.lineTo(220, 100); ctx.lineTo(310, 200); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#17062c'; ctx.fillRect(140, 200, 160, 100);
+            ctx.fillStyle = '#ff00aa'; ctx.fillRect(130, 190, 180, 15);
+
+            // Left Vendor Table Setups
+            ctx.fillStyle = '#1c0d30'; ctx.fillRect(20, 330, 130, 150);
+            ctx.fillStyle = '#2d184c'; ctx.fillRect(15, 330, 140, 12);
+            ctx.fillStyle = '#110620'; ctx.fillRect(30, 360, 110, 8);
+            ctx.fillStyle = '#110620'; ctx.fillRect(30, 400, 110, 8);
+
+            // Right Stalls setup
+            ctx.fillStyle = '#22143b'; ctx.fillRect(310, 380, 120, 100);
+            ctx.fillStyle = '#ff5e00'; ctx.fillRect(305, 380, 130, 10);
+            ctx.fillStyle = '#3a2063'; 
+            ctx.beginPath(); ctx.arc(375, 455, 30, 0, Math.PI, true); ctx.fill();
+
+            // Street floor track
+            ctx.fillStyle = '#0f081d'; ctx.fillRect(0, 480, canvas.width, 120);
+            ctx.fillStyle = '#170e2b'; ctx.fillRect(0, 480, canvas.width, 5);
+
+            // Light fixtures
+            ctx.fillStyle = '#ffaa00';
+            ctx.beginPath(); ctx.arc(80, 120, 15, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(360, 140, 12, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(80, 0); ctx.lineTo(80, 105); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(360, 0); ctx.lineTo(360, 128); ctx.stroke();
+
+            // Clutter noise generators based on active level tiers
+            if (currentLevel >= 2) {
+                ctx.strokeStyle = '#25173e'; ctx.lineWidth = 4;
+                ctx.strokeRect(40, 240, 70, 60);
+            }
+            if (currentLevel === 3) {
+                ctx.fillStyle = '#1b0e2d'; ctx.fillRect(170, 360, 100, 110);
+            }
+
+            // Object render injection loop
+            levelItems.forEach(item => {
+                if (item.found) return;
+
+                ctx.save();
+                ctx.fillStyle = item.color;
+                ctx.shadowColor = item.color;
+                
+                // Dim down neon glow states on high tiers
+                ctx.shadowBlur = currentLevel === 1 ? 5 : (currentLevel === 2 ? 2 : 0);
+
+                if (item.shape === 'circle') {
+                    ctx.beginPath(); ctx.arc(item.x, item.y, item.r, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#ffffff'; ctx.fillRect(item.x - 2, item.y - item.r - 3, 4, 4);
+                } 
+                else if (item.shape === 'egg') {
+                    ctx.beginPath(); ctx.ellipse(item.x, item.y, item.r - 3, item.r, 0, 0, Math.PI * 2); ctx.fill();
+                } 
+                else if (item.shape === 'triangle') {
+                    ctx.beginPath(); ctx.moveTo(item.x - item.r, item.y + 8); ctx.lineTo(item.x, item.y - item.r); ctx.lineTo(item.x + item.r, item.y + 8); ctx.closePath(); ctx.fill();
+                } 
+                else if (item.shape === 'rect') {
+                    ctx.fillRect(item.x - item.w/2, item.y - item.h/2, item.w, item.h);
+                }
+                else if (item.shape === 'diamond') {
+                    ctx.beginPath(); ctx.moveTo(item.x, item.y - item.r); ctx.lineTo(item.x + item.r, item.y); ctx.lineTo(item.x, item.y + item.r); ctx.lineTo(item.x - item.r, item.y); ctx.closePath(); ctx.fill();
+                }
+                else if (item.shape === 'star') {
+                    ctx.beginPath(); ctx.arc(item.x, item.y, item.r, 0, Math.PI * 2); ctx.fill();
+                }
+                ctx.restore();
+            });
+        }
+
+        // Tap handling physics mapping
+        canvas.addEventListener('pointerdown', (e) => {
+            if (!isPlaying) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const tapX = ((e.clientX - rect.left) / rect.width) * canvas.width;
+            const tapY = ((e.clientY - rect.top) / rect.height) * canvas.height;
+
+            let registeredHit = false;
+
+            levelItems.forEach(item => {
+                if (item.found) return;
+                let isInside = false;
+                
+                if (item.shape === 'rect') {
+                    if (tapX >= item.x - item.w/2 && tapX <= item.x + item.w/2 && tapY >= item.y - item.h/2 && tapY <= item.y + item.h/2) {
+                        isInside = true;
+                    }
+                } else {
+                    const distance = Math.hypot(tapX - item.x, tapY - item.y);
+                    // Mobile finger variance offset limits
+                    let pad = item.r + (currentLevel === 1 ? 8 : (currentLevel === 2 ? 5 : 3));
+                    if (distance <= pad) isInside = true;
+                }
+
+                if (isInside) {
+                    item.found = true;
+                    registeredHit = true;
+                    score += (100 * currentLevel);
+                    lblScore.innerText = score;
+                    
+                    synth(700, 1200, 'sine', 0.12);
+                    updateHUDGrid();
+                    renderViewport();
+                    checkLevelClear();
+                }
+            });
+
+            // Miss logic deductions
+            if (!registeredHit) {
+                let dropRate = currentLevel === 1 ? 3 : 4;
+                timeRemaining = Math.max(0, timeRemaining - dropRate);
+                lblTime.innerText = timeRemaining;
+                synth(200, 90, 'triangle', 0.18);
+                
+                // Damage indicator flash frame
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.15)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                setTimeout(renderViewport, 70);
+            }
+        });
+
+        function checkLevelClear() {
+            if (levelItems.every(item => item.found)) {
+                isPlaying = false;
+                clearInterval(ticker);
+                
+                if (currentLevel < 3) {
+                    setTimeout(() => {
+                        currentLevel++;
+                        intermissionTitle.innerText = `STAGE ${currentLevel - 1} CLEAR`;
+                        intermissionDesc.innerText = maps[currentLevel].brief;
+                        screenIntermission.classList.remove('hidden');
+                        synth(500, 1000, 'sine', 0.3);
+                    }, 400);
+                } else {
+                    completeSession(true);
+                }
+            }
+        }
+
+        function completeSession(isWin) {
+            isPlaying = false;
+            clearInterval(ticker);
+            
+            if (isWin) {
+                endTitle.innerText = "VICTORY!";
+                endTitle.style.color = "#00ffcc";
+                endDesc.innerText = `Bazaar cleared successfully!\nAll artifacts gathered.\n\nFinal Score: ${score} pts`;
+                synth(440, 880, 'sine', 0.5);
+            } else {
+                endTitle.innerText = "TIME OUT";
+                endTitle.style.color = "#ff00aa";
+                endDesc.innerText = `Stalls locked up down before completion.\nStuck on Stage ${currentLevel}.\n\nFinal Score: ${score} pts`;
+                synth(160, 70, 'sawtooth', 0.4);
+            }
+            screenEnd.classList.remove('hidden');
+        }
+
+        // Action Bindings
+        btnStart.addEventListener('click', runGameCycle);
+        btnRestart.addEventListener('click', runGameCycle);
+        btnNext.addEventListener('click', () => {
+            screenIntermission.classList.add('hidden');
+            setupLevel(currentLevel);
+            startTicker();
+        });
+
+        // First viewport drawing load
+        setupLevel(1);
+    </script>
+</body>
+</html>
